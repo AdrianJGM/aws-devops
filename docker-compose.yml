@@ -1,0 +1,14 @@
+version: "3.8"
+
+services:
+  app:
+    image: aws-devops
+    container_name: aws-devops-app
+    ports:
+      - "80:3000"
+
+  mongo:
+    image: mongo
+    container_name: aws-devops-db
+    ports:
+      - "27017:27017"
