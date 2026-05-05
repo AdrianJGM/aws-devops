@@ -1,19 +1,32 @@
-- name: Deploy to EC2
-  uses: appleboy/ssh-action@v0.1.10
-  with:
-    host: ${{ secrets.EC2_HOST }}
-    username: ${{ secrets.EC2_USER }}
-    key: ${{ secrets.EC2_KEY }}
-    script: |
-      aws ecr get-login-password --region us-east-2 \
-      | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-2.amazonaws.com
+name: Deploy to ECR
 
-      docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-2.amazonaws.com/devops-api:latest
+on:
+  push:
+    branches:
+      - main
 
-      docker stop aws-devops-app || true
-      docker rm aws-devops-app || true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
 
-      docker run -d -p 80:3000 \
-      --name aws-devops-app \
-      --network devops-network \
-      ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-2.amazonaws.com/devops-api:latest
+    steps:
+      - name: SSH Deploy to EC2
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+
+          script: |
+            aws ecr get-login-password --region us-east-2 \
+            | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-2.amazonaws.com
+
+            docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-2.amazonaws.com/devops-api:latest
+
+            docker stop aws-devops-app || true
+            docker rm aws-devops-app || true
+
+            docker run -d -p 80:3000 \
+            --name aws-devops-app \
+            --network devops-network \
+            ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-2.amazonaws.com/devops-api:latest
