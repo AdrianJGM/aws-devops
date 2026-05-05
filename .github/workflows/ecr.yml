@@ -10,15 +10,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # -------------------------
-      # 1. Checkout code
-      # -------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # -------------------------
-      # 2. Configure AWS credentials
-      # -------------------------
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -26,17 +20,11 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-2
 
-      # -------------------------
-      # 3. Login to Amazon ECR
-      # -------------------------
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # -------------------------
-      # 4. Build and push image
-      # -------------------------
-      - name: Build, tag, and push image
+      - name: Build and push image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: devops-api
@@ -46,9 +34,6 @@ jobs:
           docker tag $ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-      # -------------------------
-      # 5. Deploy to EC2
-      # -------------------------
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v0.1.10
         with:
@@ -59,20 +44,11 @@ jobs:
           script: |
             set -e
 
-            # -------------------------
-            # Login to ECR
-            # -------------------------
             aws ecr get-login-password --region us-east-2 \
             | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-2.amazonaws.com
 
-            # -------------------------
-            # Pull latest image
-            # -------------------------
             docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-2.amazonaws.com/devops-api:latest
 
-            # -------------------------
-            # Restart container
-            # -------------------------
             docker stop aws-devops-app || true
             docker rm aws-devops-app || true
 
@@ -82,31 +58,3 @@ jobs:
               -p 3000:3000 \
               -e MONGO_URI="${{ secrets.MONGO_URI }}" \
               ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-2.amazonaws.com/devops-api:latest
-
-            # -------------------------
-            # Install nginx
-            # -------------------------
-            sudo dnf install nginx -y || true
-
-            # -------------------------
-            # SAFE nginx config (NO HEREDOC)
-            # -------------------------
-            sudo rm -f /etc/nginx/conf.d/devops.conf
-
-            sudo bash -c "printf '%s\n' \
-'server {' \
-'    listen 80;' \
-'    server_name adrian-devops.site www.adrian-devops.site;' \
-'' \
-'    location / {' \
-'        proxy_pass http://127.0.0.1:3000;' \
-'        proxy_set_header Host \$host;' \
-'        proxy_set_header X-Real-IP \$remote_addr;' \
-'    }' \
-'}' > /etc/nginx/conf.d/devops.conf"
-
-            # -------------------------
-            # Restart nginx
-            # -------------------------
-            sudo systemctl enable nginx
-            sudo systemctl restart nginx
