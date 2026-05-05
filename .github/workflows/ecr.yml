@@ -66,6 +66,7 @@ jobs:
             docker rm aws-devops-app || true
 
             docker run -d -p 80:3000 \
-              --name aws-devops-app \
+  	      --name aws-devops-app \
               --network devops-network \
+              -e MONGO_URI="${{ secrets.MONGO_URI }}" \
               ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-2.amazonaws.com/devops-api:latest

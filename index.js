@@ -5,18 +5,24 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // 🔗 Mongo connection string
-const url = "mongodb://aws-devops-db:27017/devops-db";
+const url = process.env.MONGO_URI;
 const client = new MongoClient(url);
 
 let db;
 
 async function connectDB() {
   try {
+    if (!process.env.MONGO_URI) {
+      throw new Error("MONGO_URI is not defined");
+    }
+
     await client.connect();
     db = client.db("devops-db");
+
     console.log("✅ Connected to MongoDB");
   } catch (err) {
     console.error("❌ MongoDB connection error:", err);
+    process.exit(1); // important for Docker health
   }
 }
 
