@@ -5,7 +5,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // 🔗 Mongo connection string
-const url = "mongodb://mongo:27017";
+const url = "mongodb://aws-devops-db:27017/devops-db";
 const client = new MongoClient(url);
 
 let db;
