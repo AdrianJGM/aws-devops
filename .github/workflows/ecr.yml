@@ -1,4 +1,4 @@
-name: Test SSH Connection to EC2
+name: Debug SSH Key + Connection Test
 
 on:
   push:
@@ -6,10 +6,24 @@ on:
       - main
 
 jobs:
-  test-ssh:
+  debug-ssh:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Check if EC2_KEY exists
+        run: |
+          if [ -z "${{ secrets.EC2_KEY }}" ]; then
+            echo "❌ EC2_KEY IS EMPTY OR NOT FOUND"
+            exit 1
+          else
+            echo "✅ EC2_KEY EXISTS (GitHub is reading it)"
+          fi
+
+      - name: Show key length (safe check)
+        run: |
+          echo "Key length:"
+          echo "${{ secrets.EC2_KEY }}" | wc -c
+
       - name: Test SSH Connection
         uses: appleboy/ssh-action@v0.1.10
         with:
@@ -18,6 +32,6 @@ jobs:
           key: ${{ secrets.EC2_KEY }}
 
           script: |
-            echo "✅ SSH CONNECTION SUCCESSFUL"
+            echo "🎉 SSH CONNECTION SUCCESSFUL"
             whoami
             uname -a
