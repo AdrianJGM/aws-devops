@@ -1,4 +1,4 @@
-name: Deploy to ECR
+name: Test SSH Connection to EC2
 
 on:
   push:
@@ -6,27 +6,18 @@ on:
       - main
 
 jobs:
-  deploy:
+  test-ssh:
     runs-on: ubuntu-latest
 
     steps:
-      - name: SSH Deploy to EC2
+      - name: Test SSH Connection
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
+          username: ec2-user
           key: ${{ secrets.EC2_KEY }}
 
           script: |
-            aws ecr get-login-password --region us-east-2 \
-            | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-2.amazonaws.com
-
-            docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-2.amazonaws.com/devops-api:latest
-
-            docker stop aws-devops-app || true
-            docker rm aws-devops-app || true
-
-            docker run -d -p 80:3000 \
-            --name aws-devops-app \
-            --network devops-network \
-            ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-2.amazonaws.com/devops-api:latest
+            echo "✅ SSH CONNECTION SUCCESSFUL"
+            whoami
+            uname -a
