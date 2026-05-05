@@ -1,4 +1,4 @@
-name: Debug SSH Key + Connection Test
+name: Build, Push to ECR, and Deploy to EC2
 
 on:
   push:
@@ -6,25 +6,50 @@ on:
       - main
 
 jobs:
-  debug-ssh:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check if EC2_KEY exists
-        run: |
-          if [ -z "${{ secrets.EC2_KEY }}" ]; then
-            echo "❌ EC2_KEY IS EMPTY OR NOT FOUND"
-            exit 1
-          else
-            echo "✅ EC2_KEY EXISTS (GitHub is reading it)"
-          fi
+      # -------------------------
+      # 1. Checkout code
+      # -------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Show key length (safe check)
-        run: |
-          echo "Key length:"
-          echo "${{ secrets.EC2_KEY }}" | wc -c
+      # -------------------------
+      # 2. Configure AWS credentials
+      # -------------------------
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
 
-      - name: Test SSH Connection
+      # -------------------------
+      # 3. Login to Amazon ECR
+      # -------------------------
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # -------------------------
+      # 4. Build and push Docker image
+      # -------------------------
+      - name: Build, tag, and push image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: devops-api
+          IMAGE_TAG: latest
+        run: |
+          docker build -t $ECR_REPOSITORY:$IMAGE_TAG .
+          docker tag $ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      # -------------------------
+      # 5. Deploy on EC2 via SSH
+      # -------------------------
+      - name: Deploy to EC2
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -32,6 +57,15 @@ jobs:
           key: ${{ secrets.EC2_KEY }}
 
           script: |
-            echo "🎉 SSH CONNECTION SUCCESSFUL"
-            whoami
-            uname -a
+            aws ecr get-login-password --region us-east-2 \
+            | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-2.amazonaws.com
+
+            docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-2.amazonaws.com/devops-api:latest
+
+            docker stop aws-devops-app || true
+            docker rm aws-devops-app || true
+
+            docker run -d -p 80:3000 \
+              --name aws-devops-app \
+              --network devops-network \
+              ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-2.amazonaws.com/devops-api:latest
