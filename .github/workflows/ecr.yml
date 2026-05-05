@@ -89,22 +89,21 @@ jobs:
             sudo dnf install nginx -y || true
 
             # -------------------------
-            # SAFE nginx config (NO YAML TRAPS)
+            # SAFE nginx config (NO HEREDOC)
             # -------------------------
             sudo rm -f /etc/nginx/conf.d/devops.conf
 
-            sudo sh -c 'cat > /etc/nginx/conf.d/devops.conf <<EOF
-server {
-    listen 80;
-    server_name adrian-devops.site www.adrian-devops.site;
-
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-    }
-}
-EOF'
+            sudo bash -c "printf '%s\n' \
+'server {' \
+'    listen 80;' \
+'    server_name adrian-devops.site www.adrian-devops.site;' \
+'' \
+'    location / {' \
+'        proxy_pass http://127.0.0.1:3000;' \
+'        proxy_set_header Host \$host;' \
+'        proxy_set_header X-Real-IP \$remote_addr;' \
+'    }' \
+'}' > /etc/nginx/conf.d/devops.conf"
 
             # -------------------------
             # Restart nginx
