@@ -1,16 +1,35 @@
-- name: Connect and Deploy
-  uses: appleboy/ssh-action@v1.0.3
-  with:
-    host: ${{ secrets.EC2_HOST }}
-    username: ${{ secrets.EC2_USER }}
-    key: ${{ secrets.EC2_KEY }}
+name: Deploy to EC2
 
-    script: |
-      cd /home/ec2-user/aws-devops
-      git pull origin main
+on:
+  push:
+    branches:
+      - main
 
-      docker stop app || true
-      docker rm app || true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
 
-      docker build -t app .
-      docker run -d -p 80:3000 --name app app
+    steps:
+      - name: Connect and Deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_KEY }}
+
+          script: |
+            set -e
+
+            cd /home/ec2-user/aws-devops
+
+            git pull origin main
+
+            docker stop app || true
+            docker rm app || true
+
+            docker build -t app .
+
+            docker run -d \
+              -p 80:3000 \
+              --name app \
+              app
